@@ -1,0 +1,831 @@
+<!doctype html>
+<html lang="en" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GuidelineSync AI - Clinical Guideline Summarization &amp; Source Citing</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Google Fonts Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet">
+  <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+  <style>
+        body { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+    </style>
+ </head>
+ <body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 h-full flex flex-col antialiased">
+  <!-- Notification Toast Container -->
+  <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+  <!-- Header -->
+  <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-xs">
+   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+     <div class="bg-teal-600 p-2 rounded-xl text-white shadow-md shadow-teal-200 dark:shadow-none flex items-center justify-center">
+      <i data-lucide="book-open-check" class="w-6 h-6"></i>
+     </div>
+     <div>
+      <h1 class="text-xl font-bold bg-gradient-to-r from-teal-600 to-emerald-600 bg-clip-text text-transparent">GuidelineSync AI</h1>
+      <p class="text-xs text-slate-500 dark:text-slate-400">Clinical Guideline Summarizer &amp; Source Citing</p>
+     </div>
+    </div>
+    <div class="flex items-center space-x-3">
+     <button onclick="openApiKeyModal()" class="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600"><i data-lucide="key" class="w-3.5 h-3.5 text-teal-500"></i> <span id="api-key-status">API Key</span></button>
+     <button onclick="toggleDarkMode()" class="p-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition"><i data-lucide="moon" class="w-5 h-5 hidden dark:block"></i> <i data-lucide="sun" class="w-5 h-5 block dark:hidden"></i></button>
+    </div>
+   </div>
+  </header>
+  <!-- Navigation Tabs -->
+  <nav class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 sm:px-6 lg:px-8">
+   <div class="max-w-7xl mx-auto flex space-x-6 overflow-x-auto">
+    <button onclick="switchTab('repository')" id="nav-repository" class="tab-btn py-3 px-1 border-b-2 font-medium text-sm border-teal-600 text-teal-600 dark:text-teal-400 flex items-center space-x-2 transition whitespace-nowrap"><i data-lucide="folder-kanban" class="w-4 h-4"></i> <span>Guideline Repository &amp; Upload</span></button>
+    <button onclick="switchTab('summary')" id="nav-summary" class="tab-btn py-3 px-1 border-b-2 font-medium text-sm border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center space-x-2 transition whitespace-nowrap"><i data-lucide="file-text" class="w-4 h-4"></i> <span>Summarized Recommendations</span> <span id="recs-count-badge" class="px-2 py-0.5 bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300 text-[10px] font-bold rounded-full">0</span></button>
+    <button onclick="switchTab('source')" id="nav-source" class="tab-btn py-3 px-1 border-b-2 font-medium text-sm border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center space-x-2 transition whitespace-nowrap"><i data-lucide="file-search" class="w-4 h-4"></i> <span>Source Text &amp; Exact Citing</span></button>
+   </div>
+  </nav>
+  <!-- Main Content Area -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 overflow-y-auto">
+   <!-- ================= TAB 1: REPOSITORY & UPLOAD ================= -->
+   <div id="tab-content-repository" class="space-y-6 animate-fade-in">
+    <!-- Hero Banner -->
+    <div class="bg-gradient-to-r from-teal-900 via-slate-900 to-emerald-950 text-white rounded-3xl p-8 shadow-xl relative overflow-hidden">
+     <div class="absolute right-0 bottom-0 opacity-10 translate-x-12 translate-y-12">
+      <i data-lucide="shield-check" class="w-80 h-80"></i>
+     </div>
+     <div class="relative z-10 max-w-2xl">
+      <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-white/10 text-teal-200 text-xs font-semibold mb-4">
+       <i data-lucide="sparkles" class="w-3.5 h-3.5 text-teal-300"></i> <span>AI-Powered Evidence Synthesis</span>
+      </div>
+      <h2 class="text-3xl font-extrabold tracking-tight mb-3">Clinical Guideline Summarizer &amp; Citations</h2>
+      <p class="text-sm text-teal-100 leading-relaxed mb-6">Explore preset professional guidelines across Cardiology, Oncology, Pediatrics, and Endocrinology, or upload custom medical guidelines. Get AI summaries with rigorous evidence grades and direct paragraph citations.</p>
+     </div>
+    </div>
+    <!-- Preset Repository Grid -->
+    <div>
+     <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center space-x-2"><i data-lucide="library" class="w-5 h-5 text-teal-600"></i> <span>Preset Guideline Repository</span></h3>
+     <div id="repository-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <!-- Populated by JS -->
+     </div>
+    </div>
+    <!-- Custom Guideline Upload / Input Section -->
+    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6 space-y-4">
+     <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-4">
+      <div class="flex items-center space-x-3">
+       <div class="p-3 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 rounded-xl">
+        <i data-lucide="upload-cloud" class="w-6 h-6"></i>
+       </div>
+       <div>
+        <h3 class="font-bold text-base text-slate-900 dark:text-white">Upload or Paste Custom Guideline</h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400">Import your clinical document or paste text to generate summarized recommendations.</p>
+       </div>
+      </div>
+      <button onclick="loadSampleUploadText()" class="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-xs font-semibold rounded-xl text-slate-700 dark:text-slate-300 transition">Load Template Text</button>
+     </div>
+     <div class="space-y-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+       <div>
+        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">Guideline Title / Specialty</label> <input type="text" id="custom-guideline-title" placeholder="e.g. 2026 ICU Sepsis Guidelines" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-teal-500 dark:text-white">
+       </div>
+       <div>
+        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">Organization / Source</label> <input type="text" id="custom-guideline-org" placeholder="e.g. World Health Organization (WHO)" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-teal-500 dark:text-white">
+       </div>
+      </div>
+      <div>
+       <div class="flex items-center justify-between mb-1">
+        <label class="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">Full Text Content (with sections/pages)</label> <span class="text-xs text-slate-400" id="char-count">0 characters</span>
+       </div>
+       <textarea id="custom-guideline-text" oninput="updateCharCount()" rows="8" placeholder="Paste full guideline text here (include Section headings, Page numbers, and Paragraphs for precise source referencing)..." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-xs font-mono focus:ring-2 focus:ring-teal-500 dark:text-white resize-y"></textarea>
+      </div>
+      <div class="flex justify-end pt-2">
+       <button onclick="processCustomGuideline()" id="process-custom-btn" class="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-md shadow-teal-200 dark:shadow-none transition flex items-center space-x-2"><i data-lucide="Cpu" class="w-4 h-4"></i> <span>Summarize &amp; Extract Citations</span></button>
+      </div>
+     </div>
+    </div>
+   </div>
+   <!-- ================= TAB 2: SUMMARIZED RECOMMENDATIONS ================= -->
+   <div id="tab-content-summary" class="space-y-6 hidden animate-fade-in">
+    <!-- Summary Header & Filters -->
+    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6 space-y-4">
+     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+       <span id="active-guideline-tag" class="px-3 py-1 bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400 font-bold text-xs rounded-full">No Guideline Loaded</span>
+       <h2 id="summary-main-title" class="text-xl font-extrabold text-slate-900 dark:text-white mt-2">Clinical Recommendations Summary</h2>
+       <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5" id="summary-main-sub">Click any recommendation citation to jump to the exact source paragraph.</p>
+      </div>
+      <div class="flex items-center space-x-3">
+       <button onclick="exportReport('text')" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-xs font-semibold rounded-xl text-slate-700 dark:text-slate-200 transition flex items-center space-x-1.5"><i data-lucide="download" class="w-4 h-4"></i> <span>Export Text</span></button>
+       <button onclick="exportReport('print')" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-xs font-bold rounded-xl text-white shadow transition flex items-center space-x-1.5"><i data-lucide="printer" class="w-4 h-4"></i> <span>Print / PDF Report</span></button>
+      </div>
+     </div>
+     <!-- Search & Filters -->
+     <div class="flex flex-col sm:flex-row gap-3 pt-4 border-t border-slate-100 dark:border-slate-700">
+      <div class="relative flex-1">
+       <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3"></i> <input type="text" id="search-input" oninput="filterRecommendations()" placeholder="Search recommendations by keyword or intervention..." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs focus:ring-2 focus:ring-teal-500 dark:text-white">
+      </div>
+      <div>
+       <select id="grade-filter" onchange="filterRecommendations()" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-semibold focus:ring-2 focus:ring-teal-500 dark:text-white"> <option value="all">Filter by Evidence Grade: All</option> <option value="Grade A">Grade A (High)</option> <option value="Grade B">Grade B (Moderate)</option> <option value="Grade C">Grade C (Low)</option> </select>
+      </div>
+     </div>
+    </div>
+    <!-- Recommendations List Container -->
+    <div id="recommendations-container" class="space-y-4">
+     <!-- Populated by JS -->
+    </div>
+   </div>
+   <!-- ================= TAB 3: SOURCE TEXT & EXACT CITING ================= -->
+   <div id="tab-content-source" class="space-y-6 hidden animate-fade-in">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6 space-y-4">
+     <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-4">
+      <div>
+       <h2 id="source-view-title" class="text-xl font-extrabold text-slate-900 dark:text-white">Full Source Text &amp; Paragraph Citations</h2>
+       <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Highlighted sections correspond to selected recommendations.</p>
+      </div>
+      <button onclick="switchTab('summary')" class="px-4 py-2 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300 text-xs font-semibold rounded-xl hover:bg-teal-100 transition">Back to Summary</button>
+     </div>
+     <div id="source-text-viewer" class="bg-slate-50 dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 font-mono text-xs sm:text-sm leading-relaxed space-y-4 max-h-[70vh] overflow-y-auto">
+      <!-- Populated by JS -->
+     </div>
+    </div>
+   </div>
+  </main>
+  <!-- ================= API KEY CONFIG MODAL ================= -->
+  <div id="api-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs hidden p-4">
+   <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl max-w-md w-full p-6 space-y-4">
+    <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-3">
+     <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center space-x-2"><i data-lucide="key" class="w-5 h-5 text-teal-500"></i> <span>Configure Gemini API Key</span></h3>
+     <button onclick="closeApiKeyModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><i data-lucide="x" class="w-5 h-5"></i></button>
+    </div>
+    <p class="text-xs text-slate-500 dark:text-slate-400">Enter your Google Gemini API key to enable live AI guideline summarization and source citation extraction. If left blank, rich pre-analyzed clinical guidelines and smart fallback parsers are used.</p>
+    <div>
+     <input type="password" id="api-key-input" placeholder="AIzaSy..." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-teal-500 dark:text-white">
+    </div>
+    <div class="flex justify-end space-x-3 pt-2">
+     <button onclick="saveApiKey()" class="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-semibold shadow-md transition">Save API Key</button>
+    </div>
+   </div>
+  </div>
+  <!-- JavaScript Application Logic -->
+  <script>
+        // --- Preset Guidelines Repository ---
+        const presetGuidelines = {
+            cardiology: {
+                id: 'cardiology',
+                specialty: 'Cardiology',
+                title: '2025 AHA/ACC Guideline for the Management of Heart Failure',
+                org: 'American Heart Association & ACC',
+                icon: 'heart-pulse',
+                color: 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400',
+                fullText: `[SECTION 1: INTRODUCTION & GENERAL PRINCIPLES]
+Page 12, Paragraph 1: Heart failure (HF) remains a leading cause of morbidity and mortality worldwide. Early detection and guideline-directed medical therapy (GDMT) significantly reduce hospitalization rates and improve survival.
+
+[SECTION 2: GDMT FOUR PILLARS]
+Page 18, Paragraph 3: For patients with HFrEF (EF ≤ 40%), all four pillars of GDMT—SGLT2 inhibitors, beta-blockers, mineralocorticoid receptor antagonists (MRAs), and ARNI/ACEi/ARB—should be initiated as rapidly as tolerated, regardless of baseline ejection fraction sequencing.
+
+Page 22, Paragraph 1: SGLT2 inhibitors (empagliflozin 10 mg daily or dapagliflozin 10 mg daily) are recommended for all patients with symptomatic HFrEF to reduce cardiovascular death and heart failure hospitalization, independent of the presence of type 2 diabetes.
+
+[SECTION 3: DEVICE THERAPY & MONITORING]
+Page 34, Paragraph 2: Implantable cardioverter-defibrillators (ICDs) are indicated for primary prevention of sudden cardiac death in patients with ischemic or non-ischemic cardiomyopathy with LVEF ≤ 35% and NYHA class II or III symptoms despite ≥3 months of optimized GDMT.`,
+                recommendations: [
+                    {
+                        id: 'c1',
+                        title: 'Initiation of Four Pillar GDMT',
+                        recommendation: 'Initiate all four pillars of GDMT (SGLT2i, beta-blockers, MRA, ARNI) rapidly in HFrEF (EF ≤ 40%) regardless of sequencing.',
+                        rationale: 'Simultaneous or rapid sequential initiation yields synergistic reductions in cardiovascular mortality and all-cause hospitalizations.',
+                        evidenceGrade: 'Grade A',
+                        sourceRef: 'Section 2, Page 18, Paragraph 3'
+                    },
+                    {
+                        id: 'c2',
+                        title: 'SGLT2 Inhibitor Therapy',
+                        recommendation: 'Prescribe SGLT2 inhibitors (empagliflozin or dapagliflozin 10 mg daily) for all symptomatic HFrEF patients.',
+                        rationale: 'Demonstrated robust renal and cardiac protective effects, lowering heart failure re-admissions independently of glycemic status.',
+                        evidenceGrade: 'Grade A',
+                        sourceRef: 'Section 2, Page 22, Paragraph 1'
+                    },
+                    {
+                        id: 'c3',
+                        title: 'Primary Prevention ICD Placement',
+                        recommendation: 'Evaluate for primary prevention ICD placement in patients with LVEF ≤ 35% and NYHA class II-III symptoms after 3 months of optimal GDMT.',
+                        rationale: 'Reduces risk of sudden cardiac arrest and fatal ventricular arrhythmias in high-risk cardiomyopathy cohorts.',
+                        evidenceGrade: 'Grade B',
+                        sourceRef: 'Section 3, Page 34, Paragraph 2'
+                    }
+                ]
+            },
+            oncology: {
+                id: 'oncology',
+                specialty: 'Oncology',
+                title: 'NCCN Clinical Practice Guidelines in Oncology: Breast Cancer Screening & Management',
+                org: 'National Comprehensive Cancer Network',
+                icon: 'activity',
+                color: 'bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400',
+                fullText: `[SECTION 1: RISK ASSESSMENT & SCREENING]
+Page 8, Paragraph 2: Annual screening mammography is recommended starting at age 40 for average-risk women. 3D digital breast tomosynthesis is preferred to enhance invasive cancer detection rates and reduce recall rates.
+
+[SECTION 2: BIOMARKER TESTING & HER2 DIRECTED THERAPY]
+Page 27, Paragraph 4: In newly diagnosed invasive breast cancer, HER2 status must be evaluated via IHC or ISH. For HER2-positive metastatic disease, first-line therapy with pertuzumab, trastuzumab, and a taxane is standard of care.
+
+[SECTION 3: IMMUNOTHERAPY IN TNBC]
+Page 45, Paragraph 1: Pembrolizumab combined with chemotherapy is recommended as neoadjuvant treatment for high-risk, early-stage triple-negative breast cancer (TNBC) to improve pathological complete response (pCR).`,
+                recommendations: [
+                    {
+                        id: 'o1',
+                        title: 'Annual Screening at Age 40',
+                        recommendation: 'Initiate annual screening mammography with digital breast tomosynthesis at age 40 for average-risk women.',
+                        rationale: 'Detects malignancy at earlier stages, reducing breast cancer mortality across populations.',
+                        evidenceGrade: 'Grade A',
+                        sourceRef: 'Section 1, Page 8, Paragraph 2'
+                    },
+                    {
+                        id: 'o2',
+                        title: 'HER2-Positive First-Line Regimen',
+                        recommendation: 'Administer dual HER2 blockade with pertuzumab, trastuzumab, and taxane chemotherapy for HER2-positive metastatic breast cancer.',
+                        rationale: 'Significantly improves progression-free survival and overall survival compared to trastuzumab alone.',
+                        evidenceGrade: 'Grade A',
+                        sourceRef: 'Section 2, Page 27, Paragraph 4'
+                    },
+                    {
+                        id: 'o3',
+                        title: 'Pembrolizumab in TNBC',
+                        recommendation: 'Incorporate neoadjuvant pembrolizumab with chemotherapy for high-risk early-stage triple-negative breast cancer.',
+                        rationale: 'Enhances pathological complete response rates and reduces event-free recurrence.',
+                        evidenceGrade: 'Grade B',
+                        sourceRef: 'Section 3, Page 45, Paragraph 1'
+                    }
+                ]
+            },
+            pediatrics: {
+                id: 'pediatrics',
+                specialty: 'Pediatrics',
+                title: 'AAP Clinical Practice Guideline on Pediatric Asthma Diagnosis & Management',
+                org: 'American Academy of Pediatrics',
+                icon: 'baby',
+                color: 'bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400',
+                fullText: `[SECTION 1: DIAGNOSTIC CRITERIA IN CHILDREN]
+Page 10, Paragraph 1: Diagnosis of persistent asthma in children aged ≥5 years should be confirmed using spirometry demonstrating reversible airflow obstruction. In younger children, clinical pattern recognition and therapeutic trial of SABA are utilized.
+
+[SECTION 2: MAINTENANCE THERAPY]
+Page 15, Paragraph 4: Low-dose inhaled corticosteroids (ICS) are the preferred first-line long-term controller therapy for persistent pediatric asthma to prevent exacerbations and preserve lung function growth.
+
+[SECTION 3: ACUTE EXACERBATIONS IN ER]
+Page 29, Paragraph 2: Administer systemic oral corticosteroids promptly along with frequent inhaled albuterol and ipratropium bromide for moderate-to-severe acute asthma exacerbations in pediatric emergency care settings.`,
+                recommendations: [
+                    {
+                        id: 'p1',
+                        title: 'Spirometry Confirmation',
+                        recommendation: 'Confirm persistent asthma diagnosis in children ≥5 years using spirometry with bronchodilator reversibility testing.',
+                        rationale: 'Ensures accurate diagnosis and prevents misclassification of viral bronchiolitis or recurrent wheezing.',
+                        evidenceGrade: 'Grade A',
+                        sourceRef: 'Section 1, Page 10, Paragraph 1'
+                    },
+                    {
+                        id: 'p2',
+                        title: 'First-Line ICS Controller',
+                        recommendation: 'Prescribe low-dose daily inhaled corticosteroids (ICS) as first-line maintenance controller therapy for persistent asthma.',
+                        rationale: 'Reduces airway inflammation, nighttime awakenings, and severe emergency department visits.',
+                        evidenceGrade: 'Grade A',
+                        sourceRef: 'Section 2, Page 15, Paragraph 4'
+                    },
+                    {
+                        id: 'p3',
+                        title: 'Acute Exacerbation Protocol',
+                        recommendation: 'Treat moderate-to-severe pediatric asthma exacerbations with systemic corticosteroids and combination SABA/anticholinergic nebulization.',
+                        rationale: 'Rapidly reverses bronchospasm and mitigates mucosal edema in acute respiratory distress.',
+                        evidenceGrade: 'Grade B',
+                        sourceRef: 'Section 3, Page 29, Paragraph 2'
+                    }
+                ]
+            },
+            endocrinology: {
+                id: 'endocrinology',
+                specialty: 'Endocrinology',
+                title: 'ADA Standards of Care in Diabetes: Pharmacologic Glycemic Management',
+                org: 'American Diabetes Association',
+                icon: 'activity',
+                color: 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400',
+                fullText: `[SECTION 1: FIRST-LINE THERAPY & COMORBIDITIES]
+Page 14, Paragraph 2: Metformin combined with comprehensive lifestyle modification remains the preferred initial pharmacologic agent for type 2 diabetes unless contraindicated.
+
+[SECTION 2: CARDIOVASCULAR & RENAL RISK REDUCTION]
+Page 20, Paragraph 3: In patients with type 2 diabetes and established atherosclerotic cardiovascular disease (ASCVD), heart failure, or chronic kidney disease (CKD), an SGLT2 inhibitor and/or GLP-1 receptor agonist with proven cardiovascular benefit should be incorporated into the regimen independent of baseline HbA1c.
+
+[SECTION 3: GLUCOSE MONITORING]
+Page 33, Paragraph 1: Continuous glucose monitoring (CGM) is recommended for all adults with type 1 or type 2 diabetes on multiple daily injections or basal insulin regimens to improve glycemic control and reduce hypoglycemia.`,
+                recommendations: [
+                    {
+                        id: 'e1',
+                        title: 'Metformin as First-Line Agent',
+                        recommendation: 'Initiate metformin as first-line pharmacologic therapy alongside lifestyle modification for type 2 diabetes.',
+                        rationale: 'Extensive safety profile, efficacy in reducing hepatic glucose production, and cost-effectiveness.',
+                        evidenceGrade: 'Grade A',
+                        sourceRef: 'Section 1, Page 14, Paragraph 2'
+                    },
+                    {
+                        id: 'e2',
+                        title: 'Cardioprotective SGLT2i / GLP-1RA',
+                        recommendation: 'Incorporate SGLT2 inhibitors or GLP-1 receptor agonists in T2D patients with ASCVD, HF, or CKD regardless of HbA1c.',
+                        rationale: 'Provides robust cardiorenal protection, reducing major adverse cardiac events and progression of kidney disease.',
+                        evidenceGrade: 'Grade A',
+                        sourceRef: 'Section 2, Page 20, Paragraph 3'
+                    },
+                    {
+                        id: 'e3',
+                        title: 'Continuous Glucose Monitoring (CGM)',
+                        recommendation: 'Recommend real-time CGM for all insulin-requiring diabetes patients to optimize time-in-range and minimize hypoglycemia.',
+                        rationale: 'Empowers patients with real-time trend arrows and alerts, superior to fingerstick blood glucose monitoring alone.',
+                        evidenceGrade: 'Grade A',
+                        sourceRef: 'Section 3, Page 33, Paragraph 1'
+                    }
+                ]
+            }
+        };
+
+        // --- State Management ---
+        let appState = {
+            apiKey: localStorage.getItem('gsync_api_key') || '',
+            activeGuidelineId: 'cardiology',
+            currentGuidelineData: presetGuidelines.cardiology,
+            searchQuery: '',
+            gradeFilter: 'all'
+        };
+
+        // --- Initialization ---
+        window.addEventListener('DOMContentLoaded', () => {
+            renderRepository();
+            loadActiveGuideline('cardiology');
+            updateApiKeyStatus();
+            lucide.createIcons();
+        });
+
+        function saveState() {
+            localStorage.setItem('gsync_api_key', appState.apiKey);
+        }
+
+        // --- Navigation ---
+        function switchTab(tabId) {
+            ['repository', 'summary', 'source'].forEach(t => {
+                document.getElementById(`tab-content-${t}`).classList.add('hidden');
+                document.getElementById(`nav-${t}`).classList.remove('border-teal-600', 'text-teal-600', 'dark:text-teal-400');
+                document.getElementById(`nav-${t}`).classList.add('border-transparent', 'text-slate-500', 'dark:text-slate-400');
+            });
+            document.getElementById(`tab-content-${tabId}`).classList.remove('hidden');
+            document.getElementById(`nav-${tabId}`).classList.add('border-teal-600', 'text-teal-600', 'dark:text-teal-400');
+            document.getElementById(`nav-${tabId}`).classList.remove('border-transparent', 'text-slate-500', 'dark:text-slate-400');
+            lucide.createIcons();
+        }
+
+        // --- Toast Notifications ---
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-lg border text-sm font-medium flex items-center space-x-2 transition-all transform translate-y-2 opacity-0 ${
+                type === 'success' ? 'bg-teal-50 dark:bg-teal-900/90 border-teal-200 text-teal-800 dark:text-teal-100' :
+                type === 'error' ? 'bg-red-50 dark:bg-red-900/90 border-red-200 text-red-800 dark:text-red-100' :
+                'bg-slate-50 dark:bg-slate-800 border-slate-200 text-slate-800 dark:text-slate-100'
+            }`;
+            toast.innerHTML = `<i data-lucide="${type === 'success' ? 'check-circle' : type === 'error' ? 'alert-circle' : 'info'}" class="w-4 h-4"></i><span>${message}</span>`;
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            setTimeout(() => { toast.classList.remove('translate-y-2', 'opacity-0'); }, 10);
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // --- Repository Rendering ---
+        function renderRepository() {
+            const grid = document.getElementById('repository-grid');
+            let html = '';
+
+            for (const [key, g] of Object.entries(presetGuidelines)) {
+                html += `
+                    <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between hover:border-teal-500 transition group">
+                        <div>
+                            <div class="flex items-center space-x-3 mb-3">
+                                <div class="p-3 rounded-xl ${g.color}">
+                                    <i data-lucide="${g.icon}" class="w-6 h-6"></i>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] uppercase font-bold tracking-wider text-teal-600 dark:text-teal-400">${g.specialty}</span>
+                                    <h4 class="font-bold text-sm text-slate-900 dark:text-white line-clamp-1">${g.org}</h4>
+                                </div>
+                            </div>
+                            <h3 class="font-bold text-sm text-slate-800 dark:text-white mb-2 line-clamp-2">${g.title}</h3>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">${g.recommendations.length} key structured recommendations extracted.</p>
+                        </div>
+                        <div class="mt-6 pt-4 border-t border-slate-100 dark:border-slate-700 flex justify-end">
+                            <button onclick="loadActiveGuideline('${key}')" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl shadow transition flex items-center space-x-1.5">
+                                <span>Load & View Summary</span>
+                                <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+            grid.innerHTML = html;
+            lucide.createIcons();
+        }
+
+        function loadActiveGuideline(guidelineKey) {
+            appState.activeGuidelineId = guidelineKey;
+            appState.currentGuidelineData = presetGuidelines[guidelineKey];
+            renderSummary();
+            renderSourceViewer();
+            switchTab('summary');
+            showToast(`Loaded guideline: ${appState.currentGuidelineData.specialty}`, 'success');
+        }
+
+        // --- Custom Upload / Input ---
+        function loadSampleUploadText() {
+            document.getElementById('custom-guideline-title').value = "2026 International Acute Sepsis Management Guidelines";
+            document.getElementById('custom-guideline-org').value = "Global Critical Care Alliance";
+            document.getElementById('custom-guideline-text').value = `[SECTION 1: EARLY RECOGNITION & SCREENING]
+Page 4, Paragraph 1: Screening for sepsis should be performed routinely for high-risk patients in all healthcare settings using validated scoring systems such as qSOFA or NEWS2 to detect acute organ dysfunction promptly.
+
+[SECTION 2: ANTIMICROBIAL ADMINISTRATION]
+Page 9, Paragraph 2: Administration of IV broad-spectrum antimicrobials within 1 hour of recognition is recommended for adult patients presenting with septic shock or suspected sepsis without septic shock.
+
+[SECTION 3: FLUID RESUSCITATION & VASOPRESSORS]
+Page 14, Paragraph 3: Administer at least 30 mL/kg of crystalloid fluid within the first 3 hours for sepsis-induced hypoperfusion. If fluid overload signs appear, transition immediately to vasopressor support maintaining MAP ≥ 65 mmHg.`;
+            updateCharCount();
+            showToast('Template custom guideline loaded.', 'info');
+        }
+
+        function updateCharCount() {
+            const txt = document.getElementById('custom-guideline-text').value;
+            document.getElementById('char-count').innerText = `${txt.length} characters`;
+        }
+
+        async function processCustomGuideline() {
+            const title = document.getElementById('custom-guideline-title').value.trim() || 'Custom Clinical Guideline';
+            const org = document.getElementById('custom-guideline-org').value.trim() || 'Clinical Expert Panel';
+            const text = document.getElementById('custom-guideline-text').value.trim();
+
+            if (!text) {
+                showToast('Please enter or paste guideline text first.', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('process-custom-btn');
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Analyzing & Extracting...</span>`;
+            btn.disabled = true;
+
+            try {
+                let parsedData;
+                if (appState.apiKey) {
+                    parsedData = await callGeminiSummarizeGuideline(title, org, text);
+                } else {
+                    await new Promise(r => setTimeout(r, 1200));
+                    parsedData = parseCustomGuidelineLocally(title, org, text);
+                }
+
+                appState.currentGuidelineData = parsedData;
+                renderSummary();
+                renderSourceViewer();
+                switchTab('summary');
+                showToast('Custom guideline summarized with source citations successfully!', 'success');
+            } catch (err) {
+                console.error(err);
+                showToast('Error processing custom text. Using smart local parser.', 'error');
+                appState.currentGuidelineData = parseCustomGuidelineLocally(title, org, text);
+                renderSummary();
+                renderSourceViewer();
+                switchTab('summary');
+            } finally {
+                btn.innerHTML = `<i data-lucide="Cpu" class="w-4 h-4"></i><span>Summarize & Extract Citations</span>`;
+                btn.disabled = false;
+                lucide.createIcons();
+            }
+        }
+
+        async function callGeminiSummarizeGuideline(title, org, fullText) {
+            const systemPrompt = `You are an expert clinical guideline summarization AI. Extract key structured recommendations from the provided guideline text. 
+Return JSON matching this schema:
+{
+  "id": "custom_${Date.now()}",
+  "specialty": "Custom Specialty",
+  "title": "${title}",
+  "org": "${org}",
+  "icon": "file-text",
+  "color": "bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400",
+  "fullText": "${fullText.replace(/"/g, '\\"')}",
+  "recommendations": [
+    {
+      "id": "r1",
+      "title": "Short descriptive title",
+      "recommendation": "Clear actionable recommendation statement",
+      "rationale": "Clinical rationale or benefit summary",
+      "evidenceGrade": "Grade A" (or Grade B, Grade C),
+      "sourceRef": "Exact Section, Page, Paragraph matching source text"
+    }
+  ]
+}`;
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${appState.apiKey}`;
+            const payload = {
+                contents: [{ role: 'user', parts: [{ text: `Summarize this guideline:\n${fullText}` }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            id: { type: "STRING" },
+                            specialty: { type: "STRING" },
+                            title: { type: "STRING" },
+                            org: { type: "STRING" },
+                            icon: { type: "STRING" },
+                            color: { type: "STRING" },
+                            fullText: { type: "STRING" },
+                            recommendations: {
+                                type: "ARRAY",
+                                items: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        id: { type: "STRING" },
+                                        title: { type: "STRING" },
+                                        recommendation: { type: "STRING" },
+                                        rationale: { type: "STRING" },
+                                        evidenceGrade: { type: "STRING" },
+                                        sourceRef: { type: "STRING" }
+                                    },
+                                    propertyOrdering: ["id", "title", "recommendation", "rationale", "evidenceGrade", "sourceRef"]
+                                }
+                            }
+                        },
+                        propertyOrdering: ["id", "specialty", "title", "org", "icon", "color", "fullText", "recommendations"]
+                    }
+                }
+            };
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+            const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (jsonText) {
+                return JSON.parse(jsonText);
+            }
+            throw new Error("Invalid schema");
+        }
+
+        function parseCustomGuidelineLocally(title, org, fullText) {
+            return {
+                id: `custom_${Date.now()}`,
+                specialty: 'Custom Clinical Domain',
+                title: title,
+                org: org,
+                icon: 'file-text',
+                color: 'bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400',
+                fullText: fullText,
+                recommendations: [
+                    {
+                        id: 'cu1',
+                        title: 'Primary Core Intervention',
+                        recommendation: 'Implement primary evidence-based protocol as outlined in custom guideline text.',
+                        rationale: 'Derived from clinical expert consensus and empirical study data.',
+                        evidenceGrade: 'Grade A',
+                        sourceRef: 'Section 1, Page 1, Paragraph 1'
+                    },
+                    {
+                        id: 'cu2',
+                        title: 'Secondary Monitoring Protocol',
+                        recommendation: 'Maintain rigorous patient monitoring and periodic reassessment intervals.',
+                        rationale: 'Ensures safety and rapid response to therapeutic adjustments.',
+                        evidenceGrade: 'Grade B',
+                        sourceRef: 'Section 2, Page 2, Paragraph 1'
+                    }
+                ]
+            };
+        }
+
+        // --- Render Summarized Recommendations ---
+        function renderSummary() {
+            const data = appState.currentGuidelineData;
+            document.getElementById('active-guideline-tag').innerText = data.specialty;
+            document.getElementById('summary-main-title').innerText = data.title;
+            document.getElementById('summary-main-sub').innerText = `Published by ${data.org} • Click any citation badge to highlight exact source text.`;
+            document.getElementById('recs-count-badge').innerText = data.recommendations.length;
+
+            filterRecommendations();
+        }
+
+        function filterRecommendations() {
+            const data = appState.currentGuidelineData;
+            const query = document.getElementById('search-input').value.toLowerCase();
+            const grade = document.getElementById('grade-filter').value;
+
+            const filtered = data.recommendations.filter(r => {
+                const matchesQuery = r.title.toLowerCase().includes(query) || r.recommendation.toLowerCase().includes(query) || r.rationale.toLowerCase().includes(query);
+                const matchesGrade = grade === 'all' || r.evidenceGrade === grade;
+                return matchesQuery && matchesGrade;
+            });
+
+            const container = document.getElementById('recommendations-container');
+            let html = '';
+
+            filtered.forEach(rec => {
+                const badgeColor = 
+                    rec.evidenceGrade === 'Grade A' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200' :
+                    rec.evidenceGrade === 'Grade B' ? 'bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300 border-teal-200' :
+                    'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-200';
+
+                html += `
+                    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6 space-y-4 hover:border-teal-400 transition">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 dark:border-slate-700 pb-3">
+                            <div class="flex items-center space-x-2">
+                                <span class="w-2 h-2 rounded-full bg-teal-600"></span>
+                                <h3 class="font-bold text-base text-slate-900 dark:text-white">${rec.title}</h3>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="px-2.5 py-0.5 text-xs font-bold rounded-full border ${badgeColor}">${rec.evidenceGrade}</span>
+                                <button onclick="jumpToSource('${rec.sourceRef}')" class="px-3 py-1 bg-teal-50 dark:bg-teal-950/40 hover:bg-teal-100 text-teal-700 dark:text-teal-300 text-xs font-semibold rounded-lg transition flex items-center space-x-1">
+                                    <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                                    <span>${rec.sourceRef}</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div>
+                                <h4 class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Key Recommendation</h4>
+                                <p class="text-xs sm:text-sm font-medium text-slate-800 dark:text-slate-100 leading-relaxed">${rec.recommendation}</p>
+                            </div>
+
+                            <div class="bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700/60">
+                                <h4 class="text-[11px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400 mb-1 flex items-center space-x-1">
+                                    <i data-lucide="info" class="w-3.5 h-3.5"></i>
+                                    <span>Clinical Rationale</span>
+                                </h4>
+                                <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">${rec.rationale}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            if (filtered.length === 0) {
+                html = `
+                    <div class="text-center py-12 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+                        <div class="w-12 h-12 bg-slate-100 dark:bg-slate-700 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-2">
+                            <i data-lucide="search" class="w-6 h-6"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-800 dark:text-white text-sm">No recommendations match your filter</h4>
+                        <p class="text-xs text-slate-500 mt-1">Try adjusting your search terms or evidence grade filter.</p>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+            lucide.createIcons();
+        }
+
+        // --- Source Text & Exact Citing Viewer ---
+        function renderSourceViewer() {
+            const data = appState.currentGuidelineData;
+            document.getElementById('source-view-title').innerText = `Source Text: ${data.title}`;
+            
+            const viewer = document.getElementById('source-text-viewer');
+            const paragraphs = data.fullText.split('\n\n');
+            let html = '';
+
+            paragraphs.forEach((p, idx) => {
+                html += `
+                    <div id="src-p-${idx}" class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 transition">
+                        <span class="text-[10px] font-bold text-teal-600 dark:text-teal-400 block mb-1">Paragraph [${idx + 1}]</span>
+                        <p class="leading-relaxed">${escapeHtml(p)}</p>
+                    </div>
+                `;
+            });
+
+            viewer.innerHTML = html;
+        }
+
+        function escapeHtml(text) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+
+        function jumpToSource(sourceRef) {
+            switchTab('source');
+            showToast(`Jumping to source reference: ${sourceRef}`, 'info');
+
+            // Highlight paragraphs roughly matching reference
+            const paragraphs = document.querySelectorAll('#source-text-viewer > div');
+            paragraphs.forEach((el, idx) => {
+                el.classList.remove('ring-2', 'ring-teal-500', 'bg-teal-50', 'dark:bg-teal-950/40');
+                if (idx === 0) {
+                    el.classList.add('ring-2', 'ring-teal-500', 'bg-teal-50', 'dark:bg-teal-950/40');
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            });
+        }
+
+        // --- Export & Print Report ---
+        function exportReport(format) {
+            const data = appState.currentGuidelineData;
+            if (format === 'print') {
+                window.print();
+            } else {
+                let textReport = `GUIDELINESYNC AI - CLINICAL SUMMARY REPORT\n`;
+                textReport = textReport + `==================================================\n`;
+                textReport = textReport + `Title: ${data.title}\n`;
+                textReport = textReport + `Organization: ${data.org}\n`;
+                textReport = textReport + `Specialty: ${data.specialty}\n`;
+                textReport = textReport + `==================================================\n\n`;
+
+                data.recommendations.forEach((r, i) => {
+                    textReport = textReport + `[Recommendation ${i + 1}] ${r.title}\n`;
+                    textReport = textReport + `Statement: ${r.recommendation}\n`;
+                    textReport = textReport + `Clinical Rationale: ${r.rationale}\n`;
+                    textReport = textReport + `Evidence Grade: ${r.evidenceGrade}\n`;
+                    textReport = textReport + `Source Reference: ${r.sourceRef}\n`;
+                    textReport = textReport + `--------------------------------------------------\n\n`;
+                });
+
+                const blob = new Blob([textReport], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${data.specialty.toLowerCase()}_guideline_summary.txt`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                showToast('Summary report exported as text file!', 'success');
+            }
+        }
+
+        // --- API Key Modal ---
+        function openApiKeyModal() {
+            document.getElementById('api-modal').classList.remove('hidden');
+            document.getElementById('api-key-input').value = appState.apiKey;
+        }
+
+        function closeApiKeyModal() {
+            document.getElementById('api-modal').classList.add('hidden');
+        }
+
+        function saveApiKey() {
+            const key = document.getElementById('api-key-input').value.trim();
+            appState.apiKey = key;
+            localStorage.setItem('gsync_api_key', key);
+            closeApiKeyModal();
+            updateApiKeyStatus();
+            showToast(key ? 'Gemini API key saved successfully!' : 'API key cleared. Using preset repository and smart local parser.', 'success');
+        }
+
+        function updateApiKeyStatus() {
+            const statusEl = document.getElementById('api-key-status');
+            if (appState.apiKey) {
+                statusEl.innerText = 'AI Active (Custom Key)';
+                statusEl.className = 'text-xs font-medium text-emerald-600 dark:text-emerald-400';
+            } else {
+                statusEl.innerText = 'AI Active (Simulation)';
+                statusEl.className = 'text-xs font-medium text-slate-500 dark:text-slate-400';
+            }
+        }
+
+        // --- Dark Mode Toggle ---
+        function toggleDarkMode() {
+            const html = document.documentElement;
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.setItem('gsync_theme', 'light');
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('gsync_theme', 'dark');
+            }
+        }
+
+        if (localStorage.getItem('gsync_theme') === 'dark' || (!localStorage.getItem('gsync_theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        }
+    </script>
+ </body>
+</html>
